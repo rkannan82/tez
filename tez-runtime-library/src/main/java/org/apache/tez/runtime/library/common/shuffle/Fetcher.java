@@ -45,6 +45,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalDiskPathAllocator;
+import org.apache.hadoop.fs.LocalDiskUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.apache.hadoop.io.compress.CompressionCodec;
@@ -181,8 +182,9 @@ public class Fetcher implements Callable<FetchResult> {
 
     HostFetchResult hostFetchResult;
 
-    if (localDiskFetchEnabled &&
-        host.equals(System.getenv(ApplicationConstants.Environment.NM_HOST.toString()))) {
+    if (LocalDiskUtil.isManagedByDFS(conf)
+        || (localDiskFetchEnabled &&
+          host.equals(System.getenv(ApplicationConstants.Environment.NM_HOST.toString())))) {
       hostFetchResult = setupLocalDiskFetch();
     } else if (multiplex) {
       hostFetchResult = doSharedFetch();

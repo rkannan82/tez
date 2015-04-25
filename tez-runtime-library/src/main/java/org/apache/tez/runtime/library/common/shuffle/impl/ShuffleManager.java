@@ -222,8 +222,10 @@ public class ShuffleManager implements FetcherCallback {
 
     this.fs= LocalDiskUtil.getFileSystem(conf);
 
-    this.localDirAllocator = LocalDiskUtil.getPathAllocator(conf);
+    this.localDirAllocator = LocalDiskUtil.getPathAllocator(conf,
+        TezRuntimeFrameworkConfigs.LOCAL_DIRS);
 
+    // TODO localDisks should be created per host even though it works fine now
     this.localDisks = Iterables.toArray(
         localDirAllocator.getAllLocalPathsToRead(".", conf), Path.class);
 
@@ -342,9 +344,12 @@ public class ShuffleManager implements FetcherCallback {
       lockDisk = new Path(this.localDisks[h % this.localDisks.length], "locks");
     }
 
+    LocalDiskPathAllocator hostLocalDirAllocator = LocalDiskUtil.getPathAllocator(
+        inputHost.getHost(), conf, TezRuntimeFrameworkConfigs.LOCAL_DIRS);
+
     FetcherBuilder fetcherBuilder = new FetcherBuilder(ShuffleManager.this,
       httpConnectionParams, inputManager, inputContext.getApplicationId(),
-        jobTokenSecretMgr, srcNameTrimmed, conf, fs, localDirAllocator,
+        jobTokenSecretMgr, srcNameTrimmed, conf, fs, hostLocalDirAllocator,
         lockDisk, localDiskFetchEnabled, sharedFetchEnabled);
 
     if (codec != null) {

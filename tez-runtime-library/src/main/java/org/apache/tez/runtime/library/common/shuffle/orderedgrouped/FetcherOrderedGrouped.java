@@ -36,6 +36,7 @@ import org.apache.hadoop.fs.LocalDiskPathAllocator;
 import org.apache.hadoop.fs.LocalDiskUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.compress.CompressionCodec;
+import org.apache.tez.common.TezRuntimeFrameworkConfigs;
 import org.apache.tez.common.TezUtilsInternal;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.tez.common.counters.TezCounter;
@@ -159,9 +160,10 @@ class FetcherOrderedGrouped extends Thread {
 
           String hostPort = host.getHostIdentifier();
           String hostname = hostPort.substring(0, hostPort.indexOf(":"));
-          if (localDiskFetchEnabled &&
-              hostname.equals(System.getenv(ApplicationConstants.Environment.NM_HOST.toString()))) {
-            setupLocalDiskFetch(host);
+          if (LocalDiskUtil.isManagedByDFS(conf)
+              || (localDiskFetchEnabled &&
+                hostname.equals(System.getenv(ApplicationConstants.Environment.NM_HOST.toString())))) {
+            setupLocalDiskFetch(host, hostname);
           } else {
             // Shuffle
             copyFromHost(host);
@@ -608,7 +610,9 @@ class FetcherOrderedGrouped extends Thread {
   }
 
   @VisibleForTesting
-  protected void setupLocalDiskFetch(MapHost host) throws InterruptedException {
+  protected void setupLocalDiskFetch(MapHost host, String hostname)
+    throws InterruptedException {
+
     // Get completed maps on 'host'
     List<InputAttemptIdentifier> srcAttempts = scheduler.getMapsForHost(host);
     currentPartition = host.getPartitionId();
@@ -638,10 +642,10 @@ class FetcherOrderedGrouped extends Thread {
         MapOutput mapOutput = null;
         try {
           long startTime = System.currentTimeMillis();
-          Path filename = getShuffleInputFileName(srcAttemptId.getPathComponent(), null);
+          Path filename = getShuffleInputFileName(srcAttemptId.getPathComponent(), null, hostname);
 
           TezIndexRecord indexRecord = getIndexRecord(srcAttemptId.getPathComponent(),
-              currentPartition);
+              currentPartition, hostname);
 
           mapOutput = getMapOutputForDirectDiskFetch(srcAttemptId, filename, indexRecord);
           long endTime = System.currentTimeMillis();
@@ -672,9 +676,10 @@ class FetcherOrderedGrouped extends Thread {
   }
 
   @VisibleForTesting
-  protected Path getShuffleInputFileName(String pathComponent, String suffix)
-      throws IOException {
-    LocalDiskPathAllocator localDirAllocator = LocalDiskUtil.getPathAllocator(conf);
+  protected Path getShuffleInputFileName(String pathComponent, String suffix,
+      String hostname) throws IOException {
+    LocalDiskPathAllocator localDirAllocator = LocalDiskUtil.getPathAllocator(hostname,
+        conf, TezRuntimeFrameworkConfigs.LOCAL_DIRS);
     suffix = suffix != null ? suffix : "";
 
     String pathFromLocalDir = Constants.TEZ_RUNTIME_TASK_OUTPUT_DIR + Path.SEPARATOR +
@@ -684,10 +689,10 @@ class FetcherOrderedGrouped extends Thread {
   }
 
   @VisibleForTesting
-  protected TezIndexRecord getIndexRecord(String pathComponent, int partitionId)
-      throws IOException {
+  protected TezIndexRecord getIndexRecord(String pathComponent, int partitionId,
+      String hostname) throws IOException {
     Path indexFile = getShuffleInputFileName(pathComponent,
-        Constants.TEZ_RUNTIME_TASK_OUTPUT_INDEX_SUFFIX_STRING);
+        Constants.TEZ_RUNTIME_TASK_OUTPUT_INDEX_SUFFIX_STRING, hostname);
     TezSpillRecord spillRecord = new TezSpillRecord(indexFile, conf);
     return spillRecord.getIndex(partitionId);
   }
