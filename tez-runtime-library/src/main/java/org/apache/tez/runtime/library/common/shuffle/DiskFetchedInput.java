@@ -26,7 +26,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalDirAllocator;
+import org.apache.hadoop.fs.LocalDiskPathAllocator;
+import org.apache.hadoop.fs.LocalDiskUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.tez.runtime.library.common.InputAttemptIdentifier;
 import org.apache.tez.runtime.library.common.task.local.output.TezTaskOutputFiles;
@@ -37,18 +38,18 @@ public class DiskFetchedInput extends FetchedInput {
 
   private static final Log LOG = LogFactory.getLog(DiskFetchedInput.class);
   
-  private final FileSystem localFS;
+  private final FileSystem fs;
   private final Path tmpOutputPath;
   private final Path outputPath;
 
   public DiskFetchedInput(long actualSize, long compressedSize,
       InputAttemptIdentifier inputAttemptIdentifier,
       FetchedInputCallback callbackHandler, Configuration conf,
-      LocalDirAllocator localDirAllocator, TezTaskOutputFiles filenameAllocator)
+      LocalDiskPathAllocator localDirAllocator, TezTaskOutputFiles filenameAllocator)
       throws IOException {
     super(Type.DISK, actualSize, compressedSize, inputAttemptIdentifier, callbackHandler);
 
-    this.localFS = FileSystem.getLocal(conf);
+    this.fs = LocalDiskUtil.getFileSystem(conf);
     this.outputPath = filenameAllocator.getInputFileForWrite(
         this.inputAttemptIdentifier.getInputIdentifier().getInputIndex(), actualSize);
     // Files are not clobbered due to the id being appended to the outputPath in the tmpPath,
@@ -58,12 +59,12 @@ public class DiskFetchedInput extends FetchedInput {
 
   @Override
   public OutputStream getOutputStream() throws IOException {
-    return localFS.create(tmpOutputPath);
+    return fs.create(tmpOutputPath);
   }
 
   @Override
   public InputStream getInputStream() throws IOException {
-    return localFS.open(outputPath);
+    return fs.open(outputPath);
   }
 
   public final Path getInputPath() {
@@ -77,7 +78,7 @@ public class DiskFetchedInput extends FetchedInput {
   public void commit() throws IOException {
     if (state == State.PENDING) {
       state = State.COMMITTED;
-      localFS.rename(tmpOutputPath, outputPath);
+      fs.rename(tmpOutputPath, outputPath);
       notifyFetchComplete();
     }
   }
@@ -87,7 +88,7 @@ public class DiskFetchedInput extends FetchedInput {
     if (state == State.PENDING) {
       state = State.ABORTED;
       // TODO NEWTEZ Maybe defer this to container cleanup
-      localFS.delete(tmpOutputPath, false);
+      fs.delete(tmpOutputPath, false);
       notifyFetchFailure();
     }
   }
@@ -101,7 +102,7 @@ public class DiskFetchedInput extends FetchedInput {
       state = State.FREED;
       try {
         // TODO NEWTEZ Maybe defer this to container cleanup
-        localFS.delete(outputPath, false);
+        fs.delete(outputPath, false);
       } catch (IOException e) {
         // Ignoring the exception, will eventually be cleaned by container
         // cleanup.

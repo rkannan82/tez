@@ -29,9 +29,8 @@ import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalFileSystem;
+import org.apache.hadoop.fs.LocalDiskUtil;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.Compressor;
@@ -136,7 +135,7 @@ public abstract class ExternalSorter {
     this.conf = conf;
     this.partitions = numOutputs;
 
-    rfs = ((LocalFileSystem)FileSystem.getLocal(this.conf)).getRaw();
+    rfs = LocalDiskUtil.getFileSystem(this.conf);
 
     int assignedMb = (int) (initialMemoryAvailable >> 20);
     if (assignedMb <= 0) {
@@ -258,17 +257,16 @@ public abstract class ExternalSorter {
    * copy, and it will create the target directory if it doesn't exist.
    */
   protected void sameVolRename(Path srcPath, Path dstPath) throws IOException {
-    RawLocalFileSystem rfs = (RawLocalFileSystem) this.rfs;
-    File src = rfs.pathToFile(srcPath);
-    File dst = rfs.pathToFile(dstPath);
-    if (!dst.getParentFile().exists()) {
-      if (!dst.getParentFile().mkdirs()) {
+    Path src = srcPath;
+    Path dst = dstPath;
+    if (!rfs.exists(dst.getParent())) {
+      if (!rfs.mkdirs(dst.getParent())) {
         throw new IOException("Unable to rename " + src + " to " + dst
             + ": couldn't create parent directory");
       }
     }
 
-    if (!src.renameTo(dst)) {
+    if (!rfs.rename(src, dst)) {
       throw new IOException("Unable to rename " + src + " to " + dst);
     }
   }

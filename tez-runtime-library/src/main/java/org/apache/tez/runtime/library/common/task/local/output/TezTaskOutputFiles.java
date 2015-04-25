@@ -25,7 +25,8 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.LocalDirAllocator;
+import org.apache.hadoop.fs.LocalDiskPathAllocator;
+import org.apache.hadoop.fs.LocalDiskUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.tez.common.TezRuntimeFrameworkConfigs;
 import org.apache.tez.runtime.library.common.Constants;
@@ -47,6 +48,8 @@ public class TezTaskOutputFiles extends TezTaskOutput {
   
   public TezTaskOutputFiles(Configuration conf, String uniqueId) {
     super(conf, uniqueId);
+    lDirAlloc = LocalDiskUtil.getPathAllocator(conf,
+        TezRuntimeFrameworkConfigs.LOCAL_DIRS);
   }
 
   private static final Log LOG = LogFactory.getLog(TezTaskOutputFiles.class);
@@ -58,9 +61,7 @@ public class TezTaskOutputFiles extends TezTaskOutput {
   
 
   // assume configured to $localdir/usercache/$user/appcache/$appId
-  private LocalDirAllocator lDirAlloc =
-    new LocalDirAllocator(TezRuntimeFrameworkConfigs.LOCAL_DIRS);
-  
+  private LocalDiskPathAllocator lDirAlloc;
 
   private Path getAttemptOutputDir() {
     if (LOG.isDebugEnabled()) {

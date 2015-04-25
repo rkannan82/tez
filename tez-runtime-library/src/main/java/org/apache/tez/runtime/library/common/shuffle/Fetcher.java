@@ -43,7 +43,8 @@ import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.LocalDirAllocator;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalDiskPathAllocator;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.apache.hadoop.io.compress.CompressionCodec;
@@ -112,9 +113,9 @@ public class Fetcher implements Callable<FetchResult> {
   private final boolean localDiskFetchEnabled;
   private final boolean sharedFetchEnabled;
 
-  private final LocalDirAllocator localDirAllocator;
+  private final LocalDiskPathAllocator localDirAllocator;
   private final Path lockPath;
-  private final RawLocalFileSystem localFs;
+  private final FileSystem fs;
 
   // Initiative value is 0, which means it hasn't retried yet.
   private long retryStartTime = 0;
@@ -124,8 +125,8 @@ public class Fetcher implements Callable<FetchResult> {
   private Fetcher(FetcherCallback fetcherCallback, HttpConnectionParams params,
       FetchedInputAllocator inputManager, ApplicationId appId,
       JobTokenSecretManager jobTokenSecretManager, String srcNameTrimmed, Configuration conf,
-      RawLocalFileSystem localFs,
-      LocalDirAllocator localDirAllocator,
+      FileSystem fs,
+      LocalDiskPathAllocator localDirAllocator,
       Path lockPath,
       boolean localDiskFetchEnabled,
       boolean sharedFetchEnabled) {
@@ -143,13 +144,13 @@ public class Fetcher implements Callable<FetchResult> {
     this.fetcherIdentifier = fetcherIdGen.getAndIncrement();
     this.logIdentifier = " fetcher [" + srcNameTrimmed +"] " + fetcherIdentifier;
 
-    this.localFs = localFs;
+    this.fs = fs;
     this.localDirAllocator = localDirAllocator;
     this.lockPath = lockPath;
 
     try {
       if (this.sharedFetchEnabled) {
-        this.localFs.mkdirs(this.lockPath);
+        this.fs.mkdirs(this.lockPath);
       }
     } catch (Exception e) {
       LOG.warn("Error initializing local dirs for shared transfer " + e);
@@ -231,7 +232,7 @@ public class Fetcher implements Callable<FetchResult> {
         final TezIndexRecord indexRec;
         Path tmpIndex = outputPath.suffix(Constants.TEZ_RUNTIME_TASK_OUTPUT_INDEX_SUFFIX_STRING+tmpSuffix);
 
-        if (localFs.exists(tmpIndex)) {
+        if (fs.exists(tmpIndex)) {
           LOG.warn("Found duplicate instance of input index file " + tmpIndex);
           return;
         }
@@ -242,16 +243,16 @@ public class Fetcher implements Callable<FetchResult> {
         case DISK: {
           DiskFetchedInput input = (DiskFetchedInput) fetchedInput;
           indexRec = new TezIndexRecord(0, decompressedLength, compressedLength);
-          localFs.mkdirs(outputPath.getParent());
+          fs.mkdirs(outputPath.getParent());
           // avoid pit-falls of speculation
           tmpPath = outputPath.suffix(tmpSuffix);
           // JDK7 - TODO: use Files implementation to speed up this process
-          localFs.copyFromLocalFile(input.getInputPath(), tmpPath);
+          fs.copyFromLocalFile(input.getInputPath(), tmpPath);
           // rename is atomic
-          boolean renamed = localFs.rename(tmpPath, outputPath);
+          boolean renamed = fs.rename(tmpPath, outputPath);
           if(!renamed) {
             LOG.warn("Could not rename to cached file name " + outputPath);
-            localFs.delete(tmpPath, false);
+            fs.delete(tmpPath, false);
             return;
           }
         }
@@ -264,13 +265,13 @@ public class Fetcher implements Callable<FetchResult> {
         spillRec.putIndex(indexRec, 0);
         spillRec.writeToFile(tmpIndex, conf);
         // everything went well so far - rename it
-        boolean renamed = localFs.rename(tmpIndex, outputPath
+        boolean renamed = fs.rename(tmpIndex, outputPath
             .suffix(Constants.TEZ_RUNTIME_TASK_OUTPUT_INDEX_SUFFIX_STRING));
         if (!renamed) {
-          localFs.delete(tmpIndex, false);
+          fs.delete(tmpIndex, false);
           if (outputPath != null) {
             // invariant: outputPath was renamed from tmpPath
-            localFs.delete(outputPath, false);
+            fs.delete(outputPath, false);
           }
           LOG.warn("Could not rename the index file to "
               + outputPath
@@ -300,7 +301,7 @@ public class Fetcher implements Callable<FetchResult> {
   }
 
   private FileLock getLock() throws OverlappingFileLockException, InterruptedException, IOException {
-    File lockFile = localFs.pathToFile(new Path(lockPath, host + ".lock"));
+    File lockFile = ((RawLocalFileSystem) fs).pathToFile(new Path(lockPath, host + ".lock"));
 
     final boolean created = lockFile.createNewFile();
 
@@ -907,11 +908,11 @@ public class Fetcher implements Callable<FetchResult> {
     public FetcherBuilder(FetcherCallback fetcherCallback,
         HttpConnectionParams params, FetchedInputAllocator inputManager,
         ApplicationId appId, JobTokenSecretManager jobTokenSecretMgr, String srcNameTrimmed,
-        Configuration conf, RawLocalFileSystem localFs,
-        LocalDirAllocator localDirAllocator, Path lockPath,
+        Configuration conf, FileSystem fs,
+        LocalDiskPathAllocator localDirAllocator, Path lockPath,
         boolean localDiskFetchEnabled, boolean sharedFetchEnabled) {
       this.fetcher = new Fetcher(fetcherCallback, params, inputManager, appId,
-          jobTokenSecretMgr, srcNameTrimmed, conf, localFs, localDirAllocator,
+          jobTokenSecretMgr, srcNameTrimmed, conf, fs, localDirAllocator,
           lockPath, localDiskFetchEnabled, sharedFetchEnabled);
     }
 

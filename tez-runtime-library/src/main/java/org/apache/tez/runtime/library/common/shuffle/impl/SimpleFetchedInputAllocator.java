@@ -24,7 +24,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.LocalDirAllocator;
+import org.apache.hadoop.fs.LocalDiskPathAllocator;
+import org.apache.hadoop.fs.LocalDiskUtil;
 import org.apache.tez.common.TezRuntimeFrameworkConfigs;
 import org.apache.tez.dag.api.TezUncheckedException;
 import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
@@ -52,7 +53,7 @@ public class SimpleFetchedInputAllocator implements FetchedInputAllocator,
   private final Configuration conf;
 
   private final TezTaskOutputFiles fileNameAllocator;
-  private final LocalDirAllocator localDirAllocator;
+  private final LocalDiskPathAllocator localDirAllocator;
 
   // Configuration parameters
   private final long memoryLimit;
@@ -71,7 +72,8 @@ public class SimpleFetchedInputAllocator implements FetchedInputAllocator,
     
     this.fileNameAllocator = new TezTaskOutputFiles(conf,
         uniqueIdentifier);
-    this.localDirAllocator = new LocalDirAllocator(TezRuntimeFrameworkConfigs.LOCAL_DIRS);
+    this.localDirAllocator = LocalDiskUtil.getPathAllocator(conf,
+        TezRuntimeFrameworkConfigs.LOCAL_DIRS);
     
     // Setup configuration
     final float maxInMemCopyUse = conf.getFloat(

@@ -26,6 +26,7 @@ import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalDiskUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.io.compress.CompressionCodec;
@@ -56,7 +57,7 @@ public class LocalShuffle {
   private final Class valClass;
   private final RawComparator comparator;
 
-  private final FileSystem rfs;
+  private final FileSystem fs;
   private final int sortFactor;
   
   private final TezCounter spilledRecordsCounter;
@@ -81,7 +82,7 @@ public class LocalShuffle {
             TezRuntimeConfiguration.TEZ_RUNTIME_IO_SORT_FACTOR, 
             TezRuntimeConfiguration.TEZ_RUNTIME_IO_SORT_FACTOR_DEFAULT);
     
-    this.rfs = FileSystem.getLocal(conf).getRaw();
+    this.fs = LocalDiskUtil.getFileSystem(conf);
 
     this.spilledRecordsCounter = inputContext.getCounters().findCounter(TaskCounter.SPILLED_RECORDS);
     
@@ -116,7 +117,7 @@ public class LocalShuffle {
 
     
     // Merge
-    return TezMerger.merge(conf, rfs, 
+    return TezMerger.merge(conf, fs, 
         keyClass, valClass,
         codec, 
         ifileReadAhead, ifileReadAheadLength, ifileBufferSize,

@@ -24,7 +24,8 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalDirAllocator;
+import org.apache.hadoop.fs.LocalDiskPathAllocator;
+import org.apache.hadoop.fs.LocalDiskUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.tez.common.TezRuntimeFrameworkConfigs;
 import org.apache.tez.runtime.library.common.Constants;
@@ -43,11 +44,11 @@ public class TezLocalTaskOutputFiles extends TezTaskOutput {
 
   public TezLocalTaskOutputFiles(Configuration conf, String uniqueId) {
     super(conf, uniqueId);
+    this.lDirAlloc = LocalDiskUtil.getPathAllocator(conf,
+        TezRuntimeFrameworkConfigs.LOCAL_DIRS);
   }
 
-  private LocalDirAllocator lDirAlloc =
-    new LocalDirAllocator(TezRuntimeFrameworkConfigs.LOCAL_DIRS);
-
+  private LocalDiskPathAllocator lDirAlloc;
 
   /**
    * Return the path to local map output file created earlier
@@ -247,8 +248,9 @@ public class TezLocalTaskOutputFiles extends TezTaskOutput {
   @SuppressWarnings("deprecation")
   private void deleteLocalFiles(String subdir) throws IOException {
     String[] localDirs = getLocalDirs();
+    FileSystem fs = LocalDiskUtil.getFileSystem(conf);
     for (int i = 0; i < localDirs.length; i++) {
-      FileSystem.getLocal(conf).delete(new Path(localDirs[i], subdir));
+      fs.delete(new Path(localDirs[i], subdir));
     }
   }
 

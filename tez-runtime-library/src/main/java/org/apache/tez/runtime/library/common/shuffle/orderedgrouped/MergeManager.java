@@ -26,7 +26,9 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import com.google.common.annotations.VisibleForTesting;
+
 import java.util.concurrent.atomic.AtomicInteger;
+
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -37,8 +39,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.ChecksumFileSystem;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalDirAllocator;
-import org.apache.hadoop.fs.LocalFileSystem;
+import org.apache.hadoop.fs.LocalDiskPathAllocator;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.FileChunk;
@@ -55,11 +56,13 @@ import org.apache.tez.runtime.library.common.ConfigUtils;
 import org.apache.tez.runtime.library.common.Constants;
 import org.apache.tez.runtime.library.common.InputAttemptIdentifier;
 import org.apache.tez.runtime.library.common.combine.Combiner;
+import org.apache.tez.runtime.library.common.shuffle.ShuffleUtils;
 import org.apache.tez.runtime.library.common.sort.impl.IFile;
 import org.apache.tez.runtime.library.common.sort.impl.TezMerger;
 import org.apache.tez.runtime.library.common.sort.impl.TezRawKeyValueIterator;
 import org.apache.tez.runtime.library.common.sort.impl.IFile.Writer;
 import org.apache.tez.runtime.library.common.sort.impl.TezMerger.Segment;
+import org.apache.tez.runtime.library.common.task.local.output.TezTaskOutput;
 import org.apache.tez.runtime.library.common.task.local.output.TezTaskOutputFiles;
 import org.apache.tez.runtime.library.hadoop.compat.NullProgressable;
 
@@ -76,9 +79,8 @@ public class MergeManager {
   private static final Log LOG = LogFactory.getLog(MergeManager.class);
 
   private final Configuration conf;
-  private final FileSystem localFS;
-  private final FileSystem rfs;
-  private final LocalDirAllocator localDirAllocator;
+  private final FileSystem fs;
+  private final LocalDiskPathAllocator localDirAllocator;
   
   private final  TezTaskOutputFiles mapOutputFile;
   private final Progressable nullProgressable = new NullProgressable();
@@ -138,8 +140,8 @@ public class MergeManager {
    * Construct the MergeManager. Must call start before it becomes usable.
    */
   public MergeManager(Configuration conf,
-                      FileSystem localFS,
-                      LocalDirAllocator localDirAllocator,  
+                      FileSystem fs,
+                      LocalDiskPathAllocator localDirAllocator,
                       InputContext inputContext,
                       Combiner combiner,
                       TezCounter spilledRecordsCounter,
@@ -162,9 +164,7 @@ public class MergeManager {
     this.spilledRecordsCounter = spilledRecordsCounter;
     this.mergedMapOutputsCounter = mergedMapOutputsCounter;
     this.mapOutputFile = new TezTaskOutputFiles(conf, inputContext.getUniqueIdentifier());
-    
-    this.localFS = localFS;
-    this.rfs = ((LocalFileSystem)localFS).getRaw();
+    this.fs = fs;
     
     this.numDiskToDiskMerges = inputContext.getCounters().findCounter(TaskCounter.NUM_DISK_TO_DISK_MERGES);
     this.numMemToDiskMerges = inputContext.getCounters().findCounter(TaskCounter.NUM_MEM_TO_DISK_MERGES);
@@ -470,7 +470,7 @@ public class MergeManager {
     inMemoryMapOutputs.clear();
     List<FileChunk> disk = new ArrayList<FileChunk>(onDiskMapOutputs);
     onDiskMapOutputs.clear();
-    TezRawKeyValueIterator kvIter = finalMerge(conf, rfs, memory, disk);
+    TezRawKeyValueIterator kvIter = finalMerge(conf, fs, memory, disk);
     this.finalMergeComplete = true;
     return kvIter;
   }
@@ -520,7 +520,7 @@ public class MergeManager {
       // set to the number of in memory segments.
       // TODO Is this doing any combination ?
       TezRawKeyValueIterator rIter = 
-        TezMerger.merge(conf, rfs,
+        TezMerger.merge(conf, fs,
                        ConfigUtils.getIntermediateInputKeyClass(conf),
                        ConfigUtils.getIntermediateInputValueClass(conf),
                        inMemorySegments, inMemorySegments.size(),
@@ -587,7 +587,7 @@ public class MergeManager {
       long outFileLen = 0;
       try {
         writer =
-            new Writer(conf, rfs, outputPath,
+            new Writer(conf, fs, outputPath,
                 (Class)ConfigUtils.getIntermediateInputKeyClass(conf),
                 (Class)ConfigUtils.getIntermediateInputValueClass(conf),
                 codec, null, null);
@@ -597,7 +597,7 @@ public class MergeManager {
             " segments...");
 
         // Nothing actually materialized to disk - controlled by setting sort-factor to #segments.
-        rIter = TezMerger.merge(conf, rfs,
+        rIter = TezMerger.merge(conf, fs,
             (Class)ConfigUtils.getIntermediateInputKeyClass(conf),
             (Class)ConfigUtils.getIntermediateInputValueClass(conf),
             inMemorySegments, inMemorySegments.size(),
@@ -618,7 +618,7 @@ public class MergeManager {
         additionalBytesWritten.increment(writer.getCompressedLength());
         writer = null;
 
-        outFileLen = localFS.getFileStatus(outputPath).getLen();
+        outFileLen = fs.getFileStatus(outputPath).getLen();
         LOG.info(inputContext.getUniqueIdentifier() +
             " Merge of the " + noInMemorySegments +
             " files in-memory complete." +
@@ -627,7 +627,7 @@ public class MergeManager {
       } catch (IOException e) { 
         //make sure that we delete the ondisk file that we created 
         //earlier when we invoked cloneFileAttributes
-        localFS.delete(outputPath, true);
+        fs.delete(outputPath, true);
         throw e;
       } finally {
         if (writer != null) {
@@ -679,7 +679,7 @@ public class MergeManager {
         final boolean preserve = fileChunk.isLocalFile();
         final Path file = fileChunk.getPath();
         approxOutputSize += size;
-        Segment segment = new Segment(conf, rfs, file, offset, size, codec, ifileReadAhead,
+        Segment segment = new Segment(conf, fs, file, offset, size, codec, ifileReadAhead,
             ifileReadAheadLength, ifileBufferSize, preserve);
         inputSegments.add(segment);
       }
@@ -706,13 +706,13 @@ public class MergeManager {
       outputPath = outputPath.suffix(Constants.MERGED_OUTPUT_PREFIX + mergeFileSequenceId.getAndIncrement());
 
       Writer writer =
-        new Writer(conf, rfs, outputPath, 
+        new Writer(conf, fs, outputPath,
                         (Class)ConfigUtils.getIntermediateInputKeyClass(conf), 
                         (Class)ConfigUtils.getIntermediateInputValueClass(conf),
                         codec, null, null);
       Path tmpDir = new Path(inputContext.getUniqueIdentifier());
       try {
-        TezRawKeyValueIterator iter = TezMerger.merge(conf, rfs,
+        TezRawKeyValueIterator iter = TezMerger.merge(conf, fs,
             (Class)ConfigUtils.getIntermediateInputKeyClass(conf),
             (Class)ConfigUtils.getIntermediateInputValueClass(conf),
             inputSegments,
@@ -728,11 +728,11 @@ public class MergeManager {
         writer.close();
         additionalBytesWritten.increment(writer.getCompressedLength());
       } catch (IOException e) {
-        localFS.delete(outputPath, true);
+        fs.delete(outputPath, true);
         throw e;
       }
 
-      final long outputLen = localFS.getFileStatus(outputPath).getLen();
+      final long outputLen = fs.getFileStatus(outputPath).getLen();
       closeOnDiskFile(new FileChunk(outputPath, 0, outputLen));
 
       LOG.info(inputContext.getUniqueIdentifier() +
@@ -876,7 +876,7 @@ public class MergeManager {
           }
         }
 
-        final FileStatus fStatus = localFS.getFileStatus(outputPath);
+        final FileStatus fStatus = fs.getFileStatus(outputPath);
         // add to list of final disk outputs.
         onDiskMapOutputs.add(new FileChunk(outputPath, 0, fStatus.getLen()));
 

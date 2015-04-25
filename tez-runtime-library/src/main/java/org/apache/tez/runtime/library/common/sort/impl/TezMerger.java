@@ -31,7 +31,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.ChecksumFileSystem;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalDirAllocator;
+import org.apache.hadoop.fs.LocalDiskUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.RawComparator;
@@ -59,10 +59,6 @@ public class TezMerger {
   private static final Log LOG = LogFactory.getLog(TezMerger.class);
 
   
-  // Local directories
-  private static LocalDirAllocator lDirAlloc = 
-    new LocalDirAllocator(TezRuntimeFrameworkConfigs.LOCAL_DIRS);
-
   public static
   TezRawKeyValueIterator merge(Configuration conf, FileSystem fs,
                             Class keyClass, Class valueClass, 
@@ -689,9 +685,11 @@ public class TezMerger {
           Path tmpFilename = 
             new Path(tmpDir, "intermediate").suffix("." + passNo);
 
-          Path outputFile =  lDirAlloc.getLocalPathForWrite(
-                                              tmpFilename.toString(),
-                                              approxOutputSize, conf);
+          Path outputFile = LocalDiskUtil.getPathAllocator(conf,
+              TezRuntimeFrameworkConfigs.LOCAL_DIRS)
+            .getLocalPathForWrite(
+                tmpFilename.toString(),
+                approxOutputSize, conf);
 
           // TODO Would it ever make sense to make this an in-memory writer ?
           // Merging because of too many disk segments - might fit in memory.

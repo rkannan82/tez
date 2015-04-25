@@ -26,7 +26,7 @@ import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalFileSystem;
+import org.apache.hadoop.fs.LocalDiskUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.compress.CompressionCodec;
@@ -92,7 +92,7 @@ public class FileBasedKVWriter extends KeyValuesWriter {
     this.outputBytesCounterWithOverhead = outputContext.getCounters().findCounter(TaskCounter.OUTPUT_BYTES_WITH_OVERHEAD);
     this.outputMaterializedBytesCounter = outputContext.getCounters().findCounter(TaskCounter.OUTPUT_BYTES_PHYSICAL);
 
-    this.rfs = ((LocalFileSystem) FileSystem.getLocal(this.conf)).getRaw();
+    this.rfs = LocalDiskUtil.getFileSystem(this.conf);
 
     // Setup serialization
     keyClass = ConfigUtils.getIntermediateOutputKeyClass(this.conf);

@@ -26,6 +26,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalDiskUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BoundedByteArrayOutputStream;
 import org.apache.hadoop.io.FileChunk;
@@ -57,7 +58,7 @@ class MapOutput {
   private BoundedByteArrayOutputStream byteStream;
 
   // DISK
-  private final FileSystem localFS;
+  private final FileSystem fs;
   private final Path tmpOutputPath;
   private final FileChunk outputPath;
   private OutputStream disk;
@@ -71,7 +72,7 @@ class MapOutput {
     this.merger = merger;
     this.primaryMapOutput = primaryMapOutput;
 
-    this.localFS = fs;
+    this.fs = fs;
     this.size = size;
 
     // Other type specific values
@@ -105,7 +106,7 @@ class MapOutput {
                                               int fetcher, boolean primaryMapOutput,
                                               TezTaskOutputFiles mapOutputFile) throws
       IOException {
-    FileSystem fs = FileSystem.getLocal(conf);
+    FileSystem fs = LocalDiskUtil.getFileSystem(conf);
     Path outputpath = mapOutputFile.getInputFileForWrite(
         attemptIdentifier.getInputIdentifier().getInputIndex(), size);
     Path tmpOuputPath = outputpath.suffix(String.valueOf(fetcher));
@@ -113,7 +114,7 @@ class MapOutput {
 
     MapOutput mapOutput = new MapOutput(Type.DISK, attemptIdentifier, merger, size, outputpath, offset,
         primaryMapOutput, fs, tmpOuputPath);
-    mapOutput.disk = mapOutput.localFS.create(tmpOuputPath);
+    mapOutput.disk = mapOutput.fs.create(tmpOuputPath);
 
     return mapOutput;
   }
@@ -185,7 +186,7 @@ class MapOutput {
     if (type == Type.MEMORY) {
       merger.closeInMemoryFile(this);
     } else if (type == Type.DISK) {
-      localFS.rename(tmpOutputPath, outputPath.getPath());
+      fs.rename(tmpOutputPath, outputPath.getPath());
       merger.closeOnDiskFile(outputPath);
     } else if (type == Type.DISK_DIRECT) {
       merger.closeOnDiskFile(outputPath);
@@ -199,7 +200,7 @@ class MapOutput {
       merger.unreserve(memory.length);
     } else if (type == Type.DISK) {
       try {
-        localFS.delete(tmpOutputPath, false);
+        fs.delete(tmpOutputPath, false);
       } catch (IOException ie) {
         LOG.info("failure to clean up " + tmpOutputPath, ie);
       }

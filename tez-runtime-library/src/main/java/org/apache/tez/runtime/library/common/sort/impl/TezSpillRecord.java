@@ -29,6 +29,7 @@ import org.apache.hadoop.fs.ChecksumException;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalDiskUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.util.PureJavaCrc32;
@@ -60,7 +61,7 @@ public class TezSpillRecord {
                      String expectedIndexOwner)
       throws IOException {
 
-    final FileSystem rfs = FileSystem.getLocal(job).getRaw();
+    final FileSystem rfs = LocalDiskUtil.getFileSystem(job);
     final FSDataInputStream in = rfs.open(indexFileName);
     try {
       final long length = rfs.getFileStatus(indexFileName).getLen();
@@ -122,7 +123,7 @@ public class TezSpillRecord {
 
   public void writeToFile(Path loc, Configuration job, Checksum crc)
       throws IOException {
-    final FileSystem rfs = FileSystem.getLocal(job).getRaw();
+    final FileSystem rfs = LocalDiskUtil.getFileSystem(job);
     CheckedOutputStream chk = null;
     final FSDataOutputStream out = rfs.create(loc);
     try {

@@ -4,13 +4,15 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.TreeMultimap;
 
 import java.nio.ByteBuffer;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalDirAllocator;
+import org.apache.hadoop.fs.LocalDiskPathAllocator;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.TezLocalDirAllocator;
 import org.apache.hadoop.io.BoundedByteArrayOutputStream;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.DataInputBuffer;
@@ -333,8 +335,8 @@ public class TestValuesIterator {
     Serializer keySerializer = serializationFactory.getSerializer(keyClass);
     Serializer valueSerializer = serializationFactory.getSerializer(valClass);
 
-    LocalDirAllocator localDirAllocator =
-        new LocalDirAllocator(TezRuntimeFrameworkConfigs.LOCAL_DIRS);
+    LocalDiskPathAllocator localDirAllocator =
+        new TezLocalDirAllocator(TezRuntimeFrameworkConfigs.LOCAL_DIRS);
     InputContext context = createTezInputContext();
     MergeManager mergeManager = new MergeManager(conf, fs, localDirAllocator,
         context, null, null, null, null, null, 1024 * 1024 * 10, null, false, -1);

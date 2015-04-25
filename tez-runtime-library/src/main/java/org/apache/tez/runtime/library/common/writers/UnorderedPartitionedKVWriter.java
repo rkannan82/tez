@@ -43,7 +43,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalFileSystem;
+import org.apache.hadoop.fs.LocalDiskUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.compress.CompressionCodec;
@@ -153,7 +153,7 @@ public class UnorderedPartitionedKVWriter extends BaseUnorderedPartitionedKVWrit
     dos = new DataOutputStream(baos);
     keySerializer.open(dos);
     valSerializer.open(dos);
-    rfs = ((LocalFileSystem) FileSystem.getLocal(this.conf)).getRaw();
+    rfs = LocalDiskUtil.getFileSystem(conf);
 
     ExecutorService executor = Executors.newFixedThreadPool(
         1,

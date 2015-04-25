@@ -35,7 +35,8 @@ import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalDirAllocator;
+import org.apache.hadoop.fs.LocalDiskPathAllocator;
+import org.apache.hadoop.fs.LocalDiskUtil;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.DefaultCodec;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -150,10 +151,6 @@ public class Shuffle implements ExceptionReporter {
     
     Combiner combiner = TezRuntimeUtils.instantiateCombiner(conf, inputContext);
     
-    FileSystem localFS = FileSystem.getLocal(this.conf);
-    LocalDirAllocator localDirAllocator = 
-        new LocalDirAllocator(TezRuntimeFrameworkConfigs.LOCAL_DIRS);
-
     // TODO TEZ Get rid of Map / Reduce references.
     TezCounter shuffledInputsCounter = 
         inputContext.getCounters().findCounter(TaskCounter.NUM_SHUFFLED_INPUTS);
@@ -197,8 +194,8 @@ public class Shuffle implements ExceptionReporter {
 
     merger = new MergeManager(
           this.conf,
-          localFS,
-          localDirAllocator,
+          LocalDiskUtil.getFileSystem(conf),
+          LocalDiskUtil.getPathAllocator(conf, TezRuntimeFrameworkConfigs.LOCAL_DIRS),
           inputContext,
           combiner,
           spilledRecordsCounter,

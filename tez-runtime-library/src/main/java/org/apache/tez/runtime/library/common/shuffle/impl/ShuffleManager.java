@@ -45,9 +45,9 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalDirAllocator;
+import org.apache.hadoop.fs.LocalDiskPathAllocator;
+import org.apache.hadoop.fs.LocalDiskUtil;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.tez.common.TezRuntimeFrameworkConfigs;
@@ -152,8 +152,8 @@ public class ShuffleManager implements FetcherCallback {
   private final HttpConnectionParams httpConnectionParams;
   
 
-  private final LocalDirAllocator localDirAllocator;
-  private final RawLocalFileSystem localFs;
+  private final LocalDiskPathAllocator localDirAllocator;
+  private final FileSystem fs;
   private final Path[] localDisks;
   private final static String localhostName = NetUtils.getHostname();
 
@@ -220,10 +220,9 @@ public class ShuffleManager implements FetcherCallback {
     httpConnectionParams =
         ShuffleUtils.constructHttpShuffleConnectionParams(conf);
 
-    this.localFs = (RawLocalFileSystem) FileSystem.getLocal(conf).getRaw();
+    this.fs= LocalDiskUtil.getFileSystem(conf);
 
-    this.localDirAllocator = new LocalDirAllocator(
-        TezRuntimeFrameworkConfigs.LOCAL_DIRS);
+    this.localDirAllocator = LocalDiskUtil.getPathAllocator(conf);
 
     this.localDisks = Iterables.toArray(
         localDirAllocator.getAllLocalPathsToRead(".", conf), Path.class);
@@ -345,7 +344,7 @@ public class ShuffleManager implements FetcherCallback {
 
     FetcherBuilder fetcherBuilder = new FetcherBuilder(ShuffleManager.this,
       httpConnectionParams, inputManager, inputContext.getApplicationId(),
-        jobTokenSecretMgr, srcNameTrimmed, conf, localFs, localDirAllocator,
+        jobTokenSecretMgr, srcNameTrimmed, conf, fs, localDirAllocator,
         lockDisk, localDiskFetchEnabled, sharedFetchEnabled);
 
     if (codec != null) {

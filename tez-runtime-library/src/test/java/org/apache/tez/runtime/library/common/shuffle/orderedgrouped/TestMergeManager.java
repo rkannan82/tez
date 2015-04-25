@@ -33,8 +33,9 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalDirAllocator;
+import org.apache.hadoop.fs.LocalDiskPathAllocator;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.TezLocalDirAllocator;
 import org.apache.hadoop.io.FileChunk;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.tez.common.TezRuntimeFrameworkConfigs;
@@ -96,8 +97,8 @@ public class TestMergeManager {
     conf.setStrings(TezRuntimeFrameworkConfigs.LOCAL_DIRS, localDir.toString());
 
     FileSystem localFs = FileSystem.getLocal(conf);
-    LocalDirAllocator localDirAllocator =
-        new LocalDirAllocator(TezRuntimeFrameworkConfigs.LOCAL_DIRS);
+    LocalDiskPathAllocator localDirAllocator =
+        new TezLocalDirAllocator(TezRuntimeFrameworkConfigs.LOCAL_DIRS);
     InputContext t0inputContext = createMockInputContext(UUID.randomUUID().toString());
     InputContext t1inputContext = createMockInputContext(UUID.randomUUID().toString());
 
