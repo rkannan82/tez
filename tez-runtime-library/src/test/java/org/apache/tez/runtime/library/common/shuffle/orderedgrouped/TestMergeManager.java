@@ -98,7 +98,7 @@ public class TestMergeManager {
 
     FileSystem localFs = FileSystem.getLocal(conf);
     LocalDiskPathAllocator localDirAllocator =
-        new TezLocalDirAllocator(TezRuntimeFrameworkConfigs.LOCAL_DIRS);
+        new TezLocalDirAllocator(null, TezRuntimeFrameworkConfigs.LOCAL_DIRS, conf);
     InputContext t0inputContext = createMockInputContext(UUID.randomUUID().toString());
     InputContext t1inputContext = createMockInputContext(UUID.randomUUID().toString());
 

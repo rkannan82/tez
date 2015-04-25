@@ -336,7 +336,7 @@ public class TestValuesIterator {
     Serializer valueSerializer = serializationFactory.getSerializer(valClass);
 
     LocalDiskPathAllocator localDirAllocator =
-        new TezLocalDirAllocator(TezRuntimeFrameworkConfigs.LOCAL_DIRS);
+        new TezLocalDirAllocator(null, TezRuntimeFrameworkConfigs.LOCAL_DIRS, conf);
     InputContext context = createTezInputContext();
     MergeManager mergeManager = new MergeManager(conf, fs, localDirAllocator,
         context, null, null, null, null, null, 1024 * 1024 * 10, null, false, -1);

@@ -123,7 +123,7 @@ public class TestFetcher {
         Object[] args = invocation.getArguments();
         return new Path(SHUFFLE_INPUT_FILE_PREFIX + args[0]);
       }
-    }).when(spyFetcher).getShuffleInputFileName(anyString(), anyString());
+    }).when(spyFetcher).getShuffleInputFileName(anyString(), anyString(), anyString());
 
     doAnswer(new Answer<TezIndexRecord>() {
       @Override
@@ -138,7 +138,7 @@ public class TestFetcher {
         // match with params for copySucceeded below.
         return new TezIndexRecord(p * 10, p * 1000, p * 100);
       }
-    }).when(spyFetcher).getIndexRecord(anyString(), eq(host.getPartitionId()));
+    }).when(spyFetcher).getIndexRecord(anyString(), eq(host.getPartitionId()), anyString());
 
     doNothing().when(scheduler).copySucceeded(any(InputAttemptIdentifier.class), any(MapHost.class),
         anyLong(), anyLong(), anyLong(), any(MapOutput.class));
@@ -147,7 +147,7 @@ public class TestFetcher {
     doNothing().when(scheduler).putBackKnownMapOutput(host,
         srcAttempts.get(SECOND_FAILED_ATTEMPT_IDX));
 
-    spyFetcher.setupLocalDiskFetch(host);
+    spyFetcher.setupLocalDiskFetch(host, HOST);
 
     // should have exactly 3 success and 1 failure.
     for (int i : sucessfulAttemptsIndexes) {
