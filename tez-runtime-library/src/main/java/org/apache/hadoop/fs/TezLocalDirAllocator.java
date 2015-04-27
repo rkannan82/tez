@@ -19,6 +19,7 @@
 package org.apache.hadoop.fs;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.tez.common.TezRuntimeFrameworkConfigs;
 
 /**
  * Local disk path allocator that is based on round robin.
@@ -34,5 +35,9 @@ public class TezLocalDirAllocator extends LocalDirAllocator
       Configuration conf) {
 
     super(contextCfgItemName);
+  }
+
+  public String[] getLocalDirs(Configuration conf) {
+    return conf.getStrings(TezRuntimeFrameworkConfigs.LOCAL_DIRS);
   }
 }

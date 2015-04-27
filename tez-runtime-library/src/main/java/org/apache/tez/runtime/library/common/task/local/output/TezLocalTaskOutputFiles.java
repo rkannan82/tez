@@ -242,7 +242,7 @@ public class TezLocalTaskOutputFiles extends TezTaskOutput {
   }
 
   private String[] getLocalDirs() throws IOException {
-    return conf.getStrings(TezRuntimeFrameworkConfigs.LOCAL_DIRS);
+    return this.lDirAlloc.getLocalDirs(conf);
   }
 
   @SuppressWarnings("deprecation")

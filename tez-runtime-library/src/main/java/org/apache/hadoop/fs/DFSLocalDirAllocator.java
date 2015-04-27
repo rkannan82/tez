@@ -96,4 +96,8 @@ public class DFSLocalDirAllocator implements LocalDiskPathAllocator {
     FileSystem fs = FileSystem.get(conf);
     return fs.exists(getPath(pathStr));
   }
+
+  public String[] getLocalDirs(Configuration conf) {
+    return new String[] {nodeLocalDir.toString()};
+  }
 }

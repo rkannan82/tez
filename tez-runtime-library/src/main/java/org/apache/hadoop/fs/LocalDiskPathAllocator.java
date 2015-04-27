@@ -107,4 +107,9 @@ public interface LocalDiskPathAllocator {
    */
   boolean ifExists(String pathStr, Configuration conf)
     throws IOException;
+
+  /**
+   * Returns the local directories used to construct the paths.
+   */
+  String[] getLocalDirs(Configuration conf);
 }
